@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Streamers</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&amp;subset=latin-ext" rel="stylesheet">
+    <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
+    <style>
+        body {
+            font-family: 'Lato', sans-serif;
+        }
+        
+        .control {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+        }
+        
+        .input {
+            margin: 30px 0;
+            max-width: 60%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div id="app">
+            <div class="field">
+                <div class="control">
+                    <input class="input is-primary" type="text" placeholder="Wprowadź nick streamera" v-model="nickname" @keyup.enter="send">
+                    <div class="select is-primary">
+                        <select v-model="selected">
+                          <option v-for="(platform, index) in platforms" v-bind:value="index"> {{ platform.name }} </option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="streamers-list">
+                <streamer-item v-for="(streamer, index) in streamersList" :key="streamer.id" v-bind:streamer="streamersList[index]"></streamer-item>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.js"></script>
+    <script>
+        Vue.component('streamer-item', {
+            props: ['streamer'],
+            template: `<article class="media">
+                        <figure class="media-left">
+                            <p class="image is-64x64">
+                            <img v-bind:src="streamer.avatar">
+                            </p>
+                        </figure>
+                        <div class="media-content">
+                            <div class="content">
+                            <p>
+                                <strong> {{ streamer.username }} </strong>
+                                <br>
+                                {{ streamer.streamDetails.title }}
+                            </p>
+                            </div>
+                        </div>
+                        <div class="media-right">
+                            <p> {{ streamer.streamDetails.live ? 'LIVE' : 'OFFLINE' }}</p>
+                            <p> {{ streamer.streamDetails.live ? streamer.streamDetails.viewersCount + ' widzów' : null }}</p>
+                        </div>
+                        </article>`
+        });
+        let app = new Vue({
+            el: '#app',
+            data: {
+                nickname: '',
+                selected: 0,
+                platforms: [{
+                    name: 'Twitch.tv',
+                    clientID: '8o42qg6i3424rm4tw4rzfx1xzvfxsj',
+                    getUserData: function(nickname) {
+                        let streamerData = new app.User();
+                        axios.get('https://api.twitch.tv/helix/users?login=' + nickname, {
+                            headers: {
+                                'Client-ID': this.clientID
+                            }
+                        }).then(res => {
+                            let userData = res.data.data[0];
+                            streamerData.id = userData.id;
+                            streamerData.username = userData.display_name;
+                            streamerData.avatar = userData.profile_image_url;
+                        }).catch(err => {
+                            alert('Użytkownik nie został znaleziony');
+                        }).then(() => {
+                            this.getStreamInfo(streamerData, nickname);
+                            app.streamersList.push(userData);
+                        });
+                    },
+                    getStreamInfo: function(userData, nickname) {
+                        axios.get('https://api.twitch.tv/helix/streams?user_login=' + nickname, {
+                            headers: {
+                                'Client-ID': this.clientID
+                            }
+                        }).then(res => {
+                            let streamData = res.data.data;
+                            if (streamData.length) {
+                                userData.streamDetails.live = true;
+                                userData.streamDetails.title = streamData[0].title;
+                                userData.streamDetails.viewersCount = streamData[0].viewer_count;
+                            }
+                        });
+                    }
+                }, {
+                    name: 'Smashcast',
+                    getUserData: function(nickname) {
+                        let streamerData = new app.User();
+                        axios.get('https://api.smashcast.tv/user/' + nickname).then(res => {
+                            let userData = res.data;
+                            console.log(userData);
+                            streamerData.id = userData.user_id;
+                            streamerData.username = userData.user_name;
+                            streamerData.avatar = 'https://edge.sf.hitbox.tv' + userData.user_logo;
+                            if (userData.is_live) {
+                                streamerData.streamDetails.live = true;
+                            }
+
+                        }).then(res => {
+                            this.getStreamInfo(streamerData, nickname);
+                            app.streamersList.push(streamerData);
+                        });
+                    },
+                    getStreamInfo: function(userData, nickname) {
+                        if (!userData.streamDetails.live) return;
+                        axios.get('https://api.smashcast.tv/media/live/' + nickname).then(res => {
+                            let streamData = res.data.livestream[0];
+                            userData.streamDetails.title = streamData.media_status;
+                            userData.streamDetails.viewersCount = streamData.media_views;
+                        });
+                    }
+                }, {
+                    name: 'YouTube'
+                }],
+                streamersList: []
+            },
+
+            methods: {
+                send: function() {
+                    if (!this.nickname) return;
+                    this.platforms[this.selected].getUserData(this.nickname);
+                    this.nickname = '';
+                },
+                User: function() {
+                    this.id = -1;
+                    this.username = '';
+                    this.avatar = '';
+                    this.streamDetails = {
+                        live: false,
+                        title: '',
+                        viewersCount: 0
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
