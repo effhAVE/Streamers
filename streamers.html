@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Streamers</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.2/css/bulma.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.4/css/bulma.min.css">
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&amp;subset=latin-ext" rel="stylesheet">
     <script defer src="https://use.fontawesome.com/releases/v5.3.1/js/all.js"></script>
@@ -20,9 +20,77 @@
             justify-content: space-around;
         }
         
+        .is-live {
+            color: red;
+            font-weight: bold;
+        }
+        
         .input {
             margin: 30px 0;
             max-width: 60%;
+        }
+        
+        .is-loading {
+            background-color: red;
+        }
+        
+        .spinner3 {
+            border-top: 3px solid rgba(0, 0, 0, .5);
+            border-right: 3px solid transparent;
+            border-radius: 50%;
+            animation: rotation .8s linear infinite;
+            width: 4rem;
+            height: 4rem;
+        }
+        
+        .container {
+            height: 100vh;
+        }
+        
+        #app {
+            padding-bottom: 5em;
+            height: 100%;
+            overflow-y: hidden;
+        }
+        
+        .filters {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+        }
+        
+        .streamers-list {
+            overflow-y: auto;
+            height: 80%;
+            padding: 0 20px;
+        }
+        
+        .streamer-item {
+            transition: all 1s;
+            width: 100%;
+        }
+        
+        .list-enter,
+        .list-leave-to {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        
+        .list-leave-active {
+            position: absolute;
+        }
+        
+        @keyframes rotation {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
@@ -40,9 +108,28 @@
                     </div>
                 </div>
             </div>
-            <div class="streamers-list">
-                <streamer-item v-for="(streamer, index) in streamersList" :key="streamer.id" v-bind:streamer="streamersList[index]"></streamer-item>
+            <transition-group name="list" tag="div" class="streamers-list" appear>
+                <streamer-item @remove="deleteStreamer(index)" class="streamer-item" v-for="(streamer, index) in filterList" :key="streamer.id" v-bind:streamer="filterList[index]"></streamer-item>
+                <loader :key="2" v-if="loadingReq"></loader>
+                <modal :key="1" v-if="errors.length">
+                    <error :error="errors[index]" v-for="(error, index) in errors"></error>
+                </modal>
+            </transition-group>
+            <div class="filters">
+                <input class="input is-primary" type="text" placeholder="Filtruj" v-model="filters.name">
+                <div class="field">
+                    <div class="control">
+                        <div class="select is-primary">
+                            <select v-model="filters.live">
+                                <option :value="null">Live + Offline</option>
+                                <option :value="true">Tylko Live</option>
+                                <option :value="false">Tylko Offline</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
             </div>
+
         </div>
     </div>
 
@@ -65,17 +152,77 @@
                             </p>
                             </div>
                         </div>
-                        <div class="media-right">
-                            <p> {{ streamer.streamDetails.live ? 'LIVE' : 'OFFLINE' }}</p>
+                        <div class="media-right" :style="{ textAlign: 'right' }">
+                            <button class="delete" @click="$emit('remove')"></button>
+                            <p :class="{ 'is-live': streamer.streamDetails.live }"> {{ streamer.streamDetails.live ? 'LIVE' : 'OFFLINE' }}</p>
                             <p> {{ streamer.streamDetails.live ? streamer.streamDetails.viewersCount + ' widzów' : null }}</p>
                         </div>
+                        </article>`,
+            methods: {
+
+            }
+        });
+
+        Vue.component('loader', {
+            template: `<article class="media">
+                            <div class="spinner3"></div>
                         </article>`
         });
+
+        Vue.component('modal', {
+            template: `<div class="modal" :class="{ 'is-active': isVisible }">
+                        <div class="modal-background"></div>
+                        <div class="modal-content">
+                            <slot></slot>
+                        </div>
+                        <button @click="closeModal" class="modal-close is-large" aria-label="close"></button>
+                        </div>`,
+            methods: {
+                closeModal: function() {
+                    app.errors.splice(0);
+                }
+            },
+            data() {
+                return {
+                    isVisible: true
+                };
+            }
+        });
+
+        Vue.component('error', {
+            props: ['error'],
+            template: `<div v-if="isVisible" class="notification is-warning">
+                        <button class="delete" @click="isVisible = false"></button>
+                        {{ error.message }}
+                        </div>`,
+            data() {
+                return {
+                    isVisible: true
+                };
+            }
+        });
         let app = new Vue({
+            /*
+            Po pierwsze użyj Vue CLI.
+            V Po drugie dodaj kilku "domyślnych" streamerów. 
+            V Po trzecie dodaj walidację czy dany kanał istnieje i być może czy jest aktywny (jeśli da się to sprawdzić). 
+            V Po czwarte dodaj filtry by można było szukać streamerów. 
+                Na początek myślałem o filtrach typu online/offline/obojętnie, 18+/nie 18+/obojętnie (jeśli jest takie info w danych streama), 
+                dynamiczna lista rozwijana z grami (czyli jak dodasz streamera WoT, to WoT pojawia się na tej liście i wybranie tej gry na liście pokazuje tylko streamerów danej gry, 
+                ale jak usuniesz wszystkich streamerów z danej gry, to ona też znika z listy filtrów) oraz pole tekstowe do filtrowania po nazwie kanału i/lub opisie. 
+            V No i po piąte opcja usuwania streama z listy. 
+            Oraz ewentualnie po szóste zapisywanie listy streamów w local storage by po ponownym wejściu na stronę pamiętało co wybraliśmy.
+            */
             el: '#app',
             data: {
                 nickname: '',
+                filters: {
+                    name: '',
+                    live: null,
+                },
                 selected: 0,
+                loadingReq: false,
+                errors: [],
                 platforms: [{
                     name: 'Twitch.tv',
                     clientID: '8o42qg6i3424rm4tw4rzfx1xzvfxsj',
@@ -91,10 +238,14 @@
                             streamerData.username = userData.display_name;
                             streamerData.avatar = userData.profile_image_url;
                         }).catch(err => {
-                            alert('Użytkownik nie został znaleziony');
+                            app.errorHandler(err);
                         }).then(() => {
-                            this.getStreamInfo(streamerData, nickname);
-                            app.streamersList.push(userData);
+                            if (streamerData.id !== -1) {
+                                this.getStreamInfo(streamerData, nickname);
+                                app.streamersList.push(streamerData);
+                                app.saveToLS();
+                            }
+                            app.loadingReq = false;
                         });
                     },
                     getStreamInfo: function(userData, nickname) {
@@ -117,7 +268,6 @@
                         let streamerData = new app.User();
                         axios.get('https://api.smashcast.tv/user/' + nickname).then(res => {
                             let userData = res.data;
-                            console.log(userData);
                             streamerData.id = userData.user_id;
                             streamerData.username = userData.user_name;
                             streamerData.avatar = 'https://edge.sf.hitbox.tv' + userData.user_logo;
@@ -126,8 +276,18 @@
                             }
 
                         }).then(res => {
-                            this.getStreamInfo(streamerData, nickname);
-                            app.streamersList.push(streamerData);
+                            if (!streamerData.id) {
+                                app.errorHandler({
+                                    message: 'User with the given ID was not found '
+                                });
+                            } else {
+                                this.getStreamInfo(streamerData, nickname);
+                                console.log(streamerData);
+                                app.streamersList.push(streamerData);
+                                app.saveToLS();
+                            }
+
+                            app.loadingReq = false;
                         });
                     },
                     getStreamInfo: function(userData, nickname) {
@@ -147,9 +307,20 @@
             methods: {
                 send: function() {
                     if (!this.nickname) return;
+                    this.loadingReq = true;
                     this.platforms[this.selected].getUserData(this.nickname);
                     this.nickname = '';
                 },
+
+                deleteStreamer: function(index) {
+                    this.streamersList.splice(index, 1);
+                    this.saveToLS();
+                },
+
+                errorHandler: function(err) {
+                    this.errors.push(err);
+                },
+
                 User: function() {
                     this.id = -1;
                     this.username = '';
@@ -159,7 +330,48 @@
                         title: '',
                         viewersCount: 0
                     }
+                },
+
+                checkStatus: function(obj) {
+                    if (this.filters.live === null) return true;
+                    return obj.streamDetails.live === this.filters.live;
+                },
+
+                checkUsername: function(obj) {
+                    return obj.username.toLowerCase().includes(this.filters.name.toLowerCase());
+                },
+
+                saveToLS() {
+                    const parsed = JSON.stringify(this.streamersList);
+                    localStorage.setItem('streamersList', parsed);
                 }
+            },
+
+            computed: {
+                filterList: function() {
+                    return this.streamersList.filter(obj => {
+                        return this.checkUsername(obj) && this.checkStatus(obj);
+                    });
+                }
+            },
+
+            mounted: function() {
+                if (localStorage.getItem('streamersList') !== '[]') {
+                    try {
+                        this.streamersList = JSON.parse(localStorage.getItem('streamersList'));
+                    } catch (e) {
+                        localStorage.removeItem('streamersList');
+                    }
+                } else {
+                    this.$nextTick(function() {
+                        this.platforms[0].getUserData('ESL_CSGO');
+                        this.platforms[0].getUserData('RocketLeague');
+                        this.platforms[0].getUserData('hAVE__');
+                        this.platforms[0].getUserData('wgl_en');
+                        this.platforms[1].getUserData('hallack5');
+                    });
+                }
+
             }
         });
     </script>
