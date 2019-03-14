@@ -5,45 +5,30 @@
       <Streamer
         @remove="deleteStreamer(index)"
         class="streamer-item"
-        v-for="(streamer, index) in filterList"
+        v-for="(streamer, index) in filteredList"
         :key="streamer.id"
-        :streamer="filterList[index]"
+        :streamer="filteredList[index]"
       />
     </transition-group>
-    <div class="filters">
-      <input class="input is-primary" type="text" placeholder="Filtruj" v-model="filters.name">
-      <div class="field">
-        <div class="control">
-          <div class="select is-primary">
-            <select v-model="filters.live">
-              <option :value="null">Live + Offline</option>
-              <option :value="true">Tylko Live</option>
-              <option :value="false">Tylko Offline</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Filters ref="Filters" :streamers-list="streamersList"/>
   </div>
 </template>
 
 <script>
 import StreamerInput from "./components/StreamerInput.vue";
 import Streamer from "./components/Streamer.vue";
+import Filters from "./components/Filters.vue";
 
 export default {
   name: "app",
   components: {
     StreamerInput,
-    Streamer
+    Streamer,
+    Filters
   },
   data() {
     return {
-      filters: {
-        name: "",
-        live: null
-      },
-
+      isMounted: false,
       loadingReq: false,
       errors: [],
       streamersList: []
@@ -53,17 +38,7 @@ export default {
   methods: {
     addStreamer: function(streamer) {
       this.streamersList.push(streamer);
-    },
-
-    checkStatus: function(obj) {
-      if (this.filters.live === null) return true;
-      return obj.streamDetails.live === this.filters.live;
-    },
-
-    checkUsername: function(obj) {
-      return obj.username
-        .toLowerCase()
-        .includes(this.filters.name.toLowerCase());
+      this.saveToLS();
     },
 
     deleteStreamer: function(index) {
@@ -78,14 +53,15 @@ export default {
   },
 
   computed: {
-    filterList: function() {
-      return this.streamersList.filter(obj => {
-        return this.checkUsername(obj) && this.checkStatus(obj);
-      });
+    filteredList() {
+      if(this.isMounted) {
+        return this.$refs.Filters.filterList;
+      }
     }
   },
 
   mounted() {
+    this.isMounted = true;
     if (localStorage.getItem("streamersList") !== "[]") {
       try {
         this.streamersList = JSON.parse(localStorage.getItem("streamersList"));
