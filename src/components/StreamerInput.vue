@@ -18,7 +18,7 @@
         </select>
       </div>
       <div class="refresh-rate">
-        <input class="input is-primary" type="number" min="60" v-model.number="refreshValue">
+        <input class="input is-primary" type="number" min="60" @change="checkRefreshInput()" v-model.number="refreshValue">
       </div>
     </div>
   </div>
@@ -223,7 +223,7 @@ export default {
 
   computed: {
     refreshRate() {
-      if(this.refreshValue > 60) return this.refreshValue * 100;
+      if(this.refreshValue >= 60) return this.refreshValue * 100;
       else return 60 * 100;
     }
   },
@@ -248,6 +248,10 @@ export default {
       let newUser = new this.User(this.selected);
       this.platforms[this.selected].getUserData(this.nickname, newUser);
       this.nickname = "";
+    },
+
+    checkRefreshInput() {
+      if(this.refreshValue < 60) this.refreshValue = 60;
     }
   }
 };
