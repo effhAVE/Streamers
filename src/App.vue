@@ -5,6 +5,7 @@
       @addStreamer="addStreamer($event)"
       @newRequest="newReq = true"
       @reqCompleted="newReq = false"
+      @updated="saveToLS"
     />
     <transition-group name="list" tag="div" class="streamers-list" appear>
       <Streamer
@@ -14,6 +15,7 @@
         :key="streamer.id"
         :streamer="filteredList[index]"
         :isLoading="!streamer.id"
+        @refresh="updateStreamer(streamer)"
       />
       <Loader v-if="newReq" :key="'loader'"/>
     </transition-group>
@@ -26,7 +28,7 @@ import StreamerInput from "./components/StreamerInput.vue";
 import Streamer from "./components/Streamer.vue";
 import Filters from "./components/Filters.vue";
 import Loader from "./components/Loader.vue";
-import { setInterval } from 'timers';
+import { setInterval } from "timers";
 
 export default {
   name: "app",
@@ -59,6 +61,18 @@ export default {
     saveToLS() {
       const parsed = JSON.stringify(this.streamersList);
       localStorage.setItem("streamersList", parsed);
+    },
+
+    updateStreams() {
+      this.streamersList.forEach(el => {
+        this.$refs.StreamerInput.platforms[el.platform].getStreamInfo(el, el.username);
+      });
+
+      this.saveToLS();
+    },
+
+    updateStreamer(streamer) {
+      this.$refs.StreamerInput.platforms[streamer.platform].getStreamInfo(streamer, streamer.username);
     }
   },
 
@@ -75,18 +89,22 @@ export default {
     if (localStorage.getItem("streamersList") !== "[]") {
       try {
         this.streamersList = JSON.parse(localStorage.getItem("streamersList"));
+        this.updateStreams();
       } catch (e) {
         localStorage.removeItem("streamersList");
       }
     } else {
       this.$nextTick(function() {
-        this.$refs.StreamerInput.platforms[0].getUserData("ESL_CSGO");
-        this.$refs.StreamerInput.platforms[0].getUserData("RocketLeague");
-        this.$refs.StreamerInput.platforms[0].getUserData("hAVE__");
-        this.$refs.StreamerInput.platforms[0].getUserData("wgl_en");
-        this.$refs.StreamerInput.platforms[2].getUserData("TheBesi523");
+        let StreamerInput = this.$refs.StreamerInput;
+        StreamerInput.platforms[0].getUserData("ESL_CSGO", new StreamerInput.User(0));
+        StreamerInput.platforms[0].getUserData("RocketLeague", new StreamerInput.User(0));
+        StreamerInput.platforms[0].getUserData("hAVE__", new StreamerInput.User(0));
+        StreamerInput.platforms[0].getUserData("wgl_en", new StreamerInput.User(0));
+        StreamerInput.platforms[2].getUserData("TheBesi523", new StreamerInput.User(2));
       });
     }
+
+    setInterval(this.updateStreams, 120000);
   }
 };
 </script>
@@ -107,11 +125,6 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-around;
-}
-
-.is-live {
-  color: red;
-  font-weight: bold;
 }
 
 .input {
@@ -156,27 +169,5 @@ body {
 
 .list-leave-active {
   position: absolute;
-}
-
-@keyframes rotation {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.is-loading {
-  background-color: red;
-}
-
-.spinner3 {
-  border-top: 3px solid rgba(0, 0, 0, 0.5);
-  border-right: 3px solid transparent;
-  border-radius: 50%;
-  animation: rotation 0.8s linear infinite;
-  width: 4rem;
-  height: 4rem;
 }
 </style>

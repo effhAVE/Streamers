@@ -23,6 +23,7 @@
 
 <script>
 import axios from "axios";
+import moment from "moment";
 
 export default {
   name: "StreamerInput",
@@ -34,8 +35,8 @@ export default {
         {
           name: "Twitch.tv",
           clientID: "8o42qg6i3424rm4tw4rzfx1xzvfxsj",
-          getUserData: nickname => {
-            let streamerData = new this.User();
+          getUserData: (nickname, newUser) => {
+            let streamerData = newUser;
             axios
               .get("https://api.twitch.tv/helix/users?login=" + nickname, {
                 headers: {
@@ -49,14 +50,14 @@ export default {
                 streamerData.avatar = userData.profile_image_url;
               })
               .catch(err => {
-                this.$emit('error', err);
+                this.$emit("error", err);
               })
               .then(() => {
                 if (streamerData.id !== -1) {
                   this.platforms[0].getStreamInfo(streamerData, nickname);
                   this.$emit("addStreamer", streamerData);
                 }
-                this.$emit('reqCompleted');
+                this.$emit("reqCompleted");
               });
           },
           getStreamInfo: (userData, nickname) => {
@@ -71,6 +72,8 @@ export default {
               )
               .then(res => {
                 let streamData = res.data.data;
+                userData.lastUpdate = moment();
+                this.$emit('updated');
                 if (streamData.length) {
                   userData.streamDetails.live = true;
                   userData.streamDetails.title = streamData[0].title;
@@ -82,8 +85,8 @@ export default {
         },
         {
           name: "Smashcast",
-          getUserData: nickname => {
-            let streamerData = new this.User();
+          getUserData: (nickname, newUser) => {
+            let streamerData = newUser;
             axios
               .get("https://api.smashcast.tv/user/" + nickname)
               .then(res => {
@@ -98,14 +101,16 @@ export default {
               })
               .then(() => {
                 if (!streamerData.id) {
-                  this.$emit('error', { message: "User with the given ID was not found " });
+                  this.$emit("error", {
+                    message: "User with the given ID was not found "
+                  });
                 } else {
                   this.platforms[1].getStreamInfo(streamerData, nickname);
                   console.log(streamerData);
                   this.$emit("addStreamer", streamerData);
                 }
 
-                this.$emit('reqCompleted');
+                this.$emit("reqCompleted");
               });
           },
           getStreamInfo: (userData, nickname) => {
@@ -114,6 +119,8 @@ export default {
               .get("https://api.smashcast.tv/media/live/" + nickname)
               .then(res => {
                 let streamData = res.data.livestream[0];
+                userData.lastUpdate = moment();
+                this.$emit('updated');
                 userData.streamDetails.title = streamData.media_status;
                 userData.streamDetails.viewersCount = streamData.media_views;
               });
@@ -122,8 +129,8 @@ export default {
         {
           name: "YouTube",
           clientID: "AIzaSyA93xyB0C3A7nxUuUGBCzCltpbVkzxQWAU",
-          getUserData: (nickname) => {
-            let streamerData = new this.User();
+          getUserData: (nickname, newUser) => {
+            let streamerData = newUser;
             axios
               .get(
                 "https://www.googleapis.com/youtube/v3/channels?key=" +
@@ -142,14 +149,14 @@ export default {
                 streamerData.avatar = userData.snippet.thumbnails.default.url;
               })
               .catch(err => {
-                this.$emit('error', err);
+                this.$emit("error", err);
               })
               .then(() => {
                 if (streamerData.id !== -1) {
                   this.platforms[2].getStreamInfo(streamerData, nickname);
                   this.$emit("addStreamer", streamerData);
                 }
-                this.$emit('reqCompleted');
+                this.$emit("reqCompleted");
               });
           },
           getStreamInfo: (userData, nickname) => {
@@ -168,6 +175,8 @@ export default {
               )
               .then(res => {
                 let streamData = res.data.items[0];
+                userData.lastUpdate = moment();
+                this.$emit('updated');
                 if (typeof streamData !== "undefined") {
                   userData.streamDetails.live = true;
                   userData.streamDetails.title = streamData.snippet.title;
@@ -182,7 +191,7 @@ export default {
   },
 
   methods: {
-    User: function() {
+    User: function(platform) {
       this.id = -1;
       this.username = "";
       this.avatar = "";
@@ -191,12 +200,15 @@ export default {
         title: "",
         viewersCount: 0
       };
+      this.platform = platform;
+      this.lastUpdate = moment();
     },
 
     send: function() {
       if (!this.nickname) return;
-      this.$emit('newRequest');
-      this.platforms[this.selected].getUserData(this.nickname);
+      this.$emit("newRequest");
+      let newUser = new this.User(this.selected);
+      this.platforms[this.selected].getUserData(this.nickname, newUser);
       this.nickname = "";
     }
   }
