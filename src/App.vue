@@ -1,6 +1,11 @@
 <template>
   <div id="app">
-    <StreamerInput ref="StreamerInput" @addStreamer="addStreamer($event)"/>
+    <StreamerInput
+      ref="StreamerInput"
+      @addStreamer="addStreamer($event)"
+      @newRequest="newReq = true"
+      @reqCompleted="newReq = false"
+    />
     <transition-group name="list" tag="div" class="streamers-list" appear>
       <Streamer
         @remove="deleteStreamer(index)"
@@ -8,7 +13,9 @@
         v-for="(streamer, index) in filteredList"
         :key="streamer.id"
         :streamer="filteredList[index]"
+        :isLoading="!streamer.id"
       />
+      <Loader v-if="newReq" :key="'loader'"/>
     </transition-group>
     <Filters ref="Filters" :streamers-list="streamersList"/>
   </div>
@@ -18,20 +25,23 @@
 import StreamerInput from "./components/StreamerInput.vue";
 import Streamer from "./components/Streamer.vue";
 import Filters from "./components/Filters.vue";
+import Loader from "./components/Loader.vue";
+import { setInterval } from 'timers';
 
 export default {
   name: "app",
   components: {
     StreamerInput,
     Streamer,
-    Filters
+    Filters,
+    Loader
   },
   data() {
     return {
       isMounted: false,
-      loadingReq: false,
       errors: [],
-      streamersList: []
+      streamersList: [],
+      newReq: false
     };
   },
 
@@ -54,7 +64,7 @@ export default {
 
   computed: {
     filteredList() {
-      if(this.isMounted) {
+      if (this.isMounted) {
         return this.$refs.Filters.filterList;
       }
     }

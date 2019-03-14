@@ -49,14 +49,14 @@ export default {
                 streamerData.avatar = userData.profile_image_url;
               })
               .catch(err => {
-                //app.errorHandler(err);
+                this.$emit('error', err);
               })
               .then(() => {
                 if (streamerData.id !== -1) {
                   this.platforms[0].getStreamInfo(streamerData, nickname);
                   this.$emit("addStreamer", streamerData);
                 }
-                //app.loadingReq = false;
+                this.$emit('reqCompleted');
               });
           },
           getStreamInfo: (userData, nickname) => {
@@ -98,16 +98,14 @@ export default {
               })
               .then(() => {
                 if (!streamerData.id) {
-                  //app.errorHandler({
-                  //  message: "User with the given ID was not found "
-                  //});
+                  this.$emit('error', { message: "User with the given ID was not found " });
                 } else {
                   this.platforms[1].getStreamInfo(streamerData, nickname);
                   console.log(streamerData);
                   this.$emit("addStreamer", streamerData);
                 }
 
-                //app.loadingReq = false;
+                this.$emit('reqCompleted');
               });
           },
           getStreamInfo: (userData, nickname) => {
@@ -144,14 +142,14 @@ export default {
                 streamerData.avatar = userData.snippet.thumbnails.default.url;
               })
               .catch(err => {
-                //app.errorHandler(err);
+                this.$emit('error', err);
               })
               .then(() => {
                 if (streamerData.id !== -1) {
                   this.platforms[2].getStreamInfo(streamerData, nickname);
                   this.$emit("addStreamer", streamerData);
                 }
-                //app.loadingReq = false;
+                this.$emit('reqCompleted');
               });
           },
           getStreamInfo: (userData, nickname) => {
@@ -197,7 +195,7 @@ export default {
 
     send: function() {
       if (!this.nickname) return;
-      this.loadingReq = true;
+      this.$emit('newRequest');
       this.platforms[this.selected].getUserData(this.nickname);
       this.nickname = "";
     }

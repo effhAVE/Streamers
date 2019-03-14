@@ -25,13 +25,10 @@
 </template>
 
 <script>
-
 export default {
   name: "Streamer",
   props: {
     streamer: Object
-  },
-  
-  
+  }
 };
 </script>
