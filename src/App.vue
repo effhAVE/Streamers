@@ -65,14 +65,20 @@ export default {
 
     updateStreams() {
       this.streamersList.forEach(el => {
-        this.$refs.StreamerInput.platforms[el.platform].getStreamInfo(el, el.username);
+        this.$refs.StreamerInput.platforms[el.platform].getStreamInfo(
+          el,
+          el.username
+        );
       });
 
       this.saveToLS();
     },
 
     updateStreamer(streamer) {
-      this.$refs.StreamerInput.platforms[streamer.platform].getStreamInfo(streamer, streamer.username);
+      this.$refs.StreamerInput.platforms[streamer.platform].getStreamInfo(
+        streamer,
+        streamer.username
+      );
     }
   },
 
@@ -86,6 +92,7 @@ export default {
 
   mounted() {
     this.isMounted = true;
+    let StreamerInput = this.$refs.StreamerInput;
     if (localStorage.getItem("streamersList") !== "[]") {
       try {
         this.streamersList = JSON.parse(localStorage.getItem("streamersList"));
@@ -95,16 +102,30 @@ export default {
       }
     } else {
       this.$nextTick(function() {
-        let StreamerInput = this.$refs.StreamerInput;
-        StreamerInput.platforms[0].getUserData("ESL_CSGO", new StreamerInput.User(0));
-        StreamerInput.platforms[0].getUserData("RocketLeague", new StreamerInput.User(0));
-        StreamerInput.platforms[0].getUserData("hAVE__", new StreamerInput.User(0));
-        StreamerInput.platforms[0].getUserData("wgl_en", new StreamerInput.User(0));
-        StreamerInput.platforms[2].getUserData("TheBesi523", new StreamerInput.User(2));
+        StreamerInput.platforms[0].getUserData(
+          "ESL_CSGO",
+          new StreamerInput.User(0)
+        );
+        StreamerInput.platforms[0].getUserData(
+          "RocketLeague",
+          new StreamerInput.User(0)
+        );
+        StreamerInput.platforms[0].getUserData(
+          "hAVE__",
+          new StreamerInput.User(0)
+        );
+        StreamerInput.platforms[0].getUserData(
+          "wgl_en",
+          new StreamerInput.User(0)
+        );
+        StreamerInput.platforms[2].getUserData(
+          "TheBesi523",
+          new StreamerInput.User(2)
+        );
       });
     }
 
-    setInterval(this.updateStreams, 120000);
+    setInterval(this.updateStreams, StreamerInput.refreshRate || 120000);
   }
 };
 </script>

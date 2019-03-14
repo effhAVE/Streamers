@@ -25,7 +25,7 @@
       <p
         :class="{ 'is-live': streamer.streamDetails.live }"
       >{{ streamer.streamDetails.live ? 'LIVE' : 'OFFLINE' }}</p>
-      <p>{{ streamer.streamDetails.live ? streamer.streamDetails.viewersCount + ' widzów' : null }}</p>
+      <p v-if="streamer.streamDetails.live">{{ streamer.streamDetails.viewersCount + ' widzów' }}</p>
     </div>
   </article>
 </template>
@@ -72,6 +72,9 @@ small {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+  & > * {
+    padding-bottom: 5px;
+  }
 }
 
 .is-live {

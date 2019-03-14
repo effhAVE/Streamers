@@ -17,6 +17,9 @@
           >{{ platform.name }}</option>
         </select>
       </div>
+      <div class="refresh-rate">
+        <input class="input is-primary" type="number" min="60" v-model.number="refreshValue">
+      </div>
     </div>
   </div>
 </template>
@@ -31,6 +34,7 @@ export default {
     return {
       nickname: "",
       selected: 0,
+      refreshValue: 120,
       platforms: [
         {
           name: "Twitch.tv",
@@ -73,12 +77,16 @@ export default {
               .then(res => {
                 let streamData = res.data.data;
                 userData.lastUpdate = moment();
-                this.$emit('updated');
+                this.$emit("updated");
                 if (streamData.length) {
                   userData.streamDetails.live = true;
                   userData.streamDetails.title = streamData[0].title;
                   userData.streamDetails.viewersCount =
                     streamData[0].viewer_count;
+                } else {
+                  userData.streamDetails.live = false;
+                  userData.streamDetails.title = "";
+                  userData.streamDetails.viewersCount = 0;
                 }
               });
           }
@@ -106,7 +114,6 @@ export default {
                   });
                 } else {
                   this.platforms[1].getStreamInfo(streamerData, nickname);
-                  console.log(streamerData);
                   this.$emit("addStreamer", streamerData);
                 }
 
@@ -120,7 +127,7 @@ export default {
               .then(res => {
                 let streamData = res.data.livestream[0];
                 userData.lastUpdate = moment();
-                this.$emit('updated');
+                this.$emit("updated");
                 userData.streamDetails.title = streamData.media_status;
                 userData.streamDetails.viewersCount = streamData.media_views;
               });
@@ -160,6 +167,7 @@ export default {
               });
           },
           getStreamInfo: (userData, nickname) => {
+            let videoID = "";
             axios
               .get(
                 "https://www.googleapis.com/youtube/v3/search?key=" +
@@ -176,18 +184,48 @@ export default {
               .then(res => {
                 let streamData = res.data.items[0];
                 userData.lastUpdate = moment();
-                this.$emit('updated');
+                this.$emit("updated");
                 if (typeof streamData !== "undefined") {
                   userData.streamDetails.live = true;
                   userData.streamDetails.title = streamData.snippet.title;
-                  //userData.streamDetails.viewersCount = streamData.liveStreamingDetails.concurrentViewers;
+                  videoID = streamData.id.videoId;
+                } else {
+                  userData.streamDetails.live = false;
+                  userData.streamDetails.title = "";
+                  videoID = "";
+                  userData.streamDetails.viewersCount = 0;
                 }
-                console.log(streamData);
+              })
+              .then(() => {
+                if (videoID) {
+                  axios
+                    .get(
+                      "https://www.googleapis.com/youtube/v3/videos?key=" +
+                        this.platforms[2].clientID,
+                      {
+                        params: {
+                          id: videoID,
+                          part: "snippet, liveStreamingDetails"
+                        }
+                      }
+                    )
+                    .then(res => {
+                      userData.streamDetails.viewersCount =
+                        res.data.items[0].liveStreamingDetails.concurrentViewers;
+                    });
+                }
               });
           }
         }
       ]
     };
+  },
+
+  computed: {
+    refreshRate() {
+      if(this.refreshValue > 60) return this.refreshValue * 100;
+      else return 60 * 100;
+    }
   },
 
   methods: {
@@ -215,7 +253,26 @@ export default {
 };
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+.refresh-rate {
+  text-align: center;
+  position: relative;
+  & > .input {
+    width: auto;
+    margin: 0 10px;
+    text-align: center;
+  }
+  &::after {
+    position: absolute;
+    width: 100%;
+    font-size: 0.7em;
+    content: "Częstotliwość aktualizacji (sek)";
+    bottom: 0;
+    left: 50%;
+    transform: translate(-50%, 100%);
+  }
+}
 </style>
+
 
 
