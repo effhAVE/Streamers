@@ -18,7 +18,13 @@
         </select>
       </div>
       <div class="refresh-rate">
-        <input class="input is-primary" type="number" min="60" @change="checkRefreshInput()" v-model.number="refreshValue">
+        <input
+          class="input is-primary"
+          type="number"
+          min="60"
+          @change="checkRefreshInput()"
+          v-model.number="refreshValue"
+        >
       </div>
     </div>
   </div>
@@ -27,6 +33,43 @@
 <script>
 import axios from "axios";
 import moment from "moment";
+import { toast } from "bulma-toast";
+
+class Toast {
+  constructor(title, message) {
+    this.title = title;
+    this.message = message;
+  }
+}
+
+class Err extends Toast {
+  constructor(title, message) {
+    super(title, message);
+    this.type = "is-danger";
+  }
+}
+
+class Warning extends Toast {
+  constructor(title, message) {
+    super(title, message);
+    this.type = "is-warning";
+  }
+}
+
+const userNotFound = new Warning(
+  "Nie znaleziono",
+  "Użytkownik o podanej nazwie nie mógł zostać znaleziony."
+);
+
+const duplicateUser = new Warning(
+  "Duplikat",
+  "Użytkownik został już wcześniej dodany."
+);
+
+const toastData = {
+  userNotFound,
+  duplicateUser
+};
 
 export default {
   name: "StreamerInput",
@@ -35,6 +78,7 @@ export default {
       nickname: "",
       selected: 0,
       refreshValue: 120,
+      toastData: toastData,
       platforms: [
         {
           name: "Twitch.tv",
@@ -49,12 +93,20 @@ export default {
               })
               .then(res => {
                 let userData = res.data.data[0];
+                if (!userData) {
+                  this.toastHandler(this.toastData.userNotFound);
+                  throw new Error();
+                }
                 streamerData.id = userData.id;
                 streamerData.username = userData.display_name;
                 streamerData.avatar = userData.profile_image_url;
               })
               .catch(err => {
-                this.$emit("error", err);
+                if (err.response) {
+                  err = err.response.data;
+                  let errObj = new Err(err.error, err.message);
+                  this.toastHandler(errObj);
+                }
               })
               .then(() => {
                 if (streamerData.id !== -1) {
@@ -109,14 +161,12 @@ export default {
               })
               .then(() => {
                 if (!streamerData.id) {
-                  this.$emit("error", {
-                    message: "User with the given ID was not found "
-                  });
+                  this.toastHandler(this.toastData.userNotFound);
+                  throw new Error();
                 } else {
                   this.platforms[1].getStreamInfo(streamerData, nickname);
                   this.$emit("addStreamer", streamerData);
                 }
-
                 this.$emit("reqCompleted");
               });
           },
@@ -151,12 +201,20 @@ export default {
               )
               .then(res => {
                 let userData = res.data.items[0];
+                if (!userData) {
+                  this.toastHandler(this.toastData.userNotFound);
+                  throw new Error();
+                }
                 streamerData.id = userData.id;
                 streamerData.username = userData.snippet.title;
                 streamerData.avatar = userData.snippet.thumbnails.default.url;
               })
               .catch(err => {
-                this.$emit("error", err);
+                if (err.response) {
+                  err = err.response.data;
+                  let errObj = new Err(err.error, err.message);
+                  this.toastHandler(errObj);
+                }
               })
               .then(() => {
                 if (streamerData.id !== -1) {
@@ -223,7 +281,7 @@ export default {
 
   computed: {
     refreshRate() {
-      if(this.refreshValue >= 60) return this.refreshValue * 100;
+      if (this.refreshValue >= 60) return this.refreshValue * 100;
       else return 60 * 100;
     }
   },
@@ -250,8 +308,12 @@ export default {
       this.nickname = "";
     },
 
+    toastHandler: function(obj) {
+      toast({ ...obj, duration: 5000 });
+    },
+
     checkRefreshInput() {
-      if(this.refreshValue < 60) this.refreshValue = 60;
+      if (this.refreshValue < 60) this.refreshValue = 60;
     }
   }
 };
@@ -277,6 +339,3 @@ export default {
   }
 }
 </style>
-
-
-

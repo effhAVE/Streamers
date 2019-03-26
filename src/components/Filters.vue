@@ -1,6 +1,11 @@
 <template>
   <div class="filters">
-    <input class="input is-primary" type="text" placeholder="Filtruj" v-model="filters.name">
+    <input
+      class="input is-primary"
+      type="text"
+      placeholder="Filtruj"
+      v-model="filters.name"
+    />
     <div class="field">
       <div class="control">
         <div class="select is-primary">
@@ -20,7 +25,7 @@ export default {
   props: {
     streamersList: Array
   },
-  
+
   data() {
     return {
       filters: {
@@ -50,7 +55,5 @@ export default {
       });
     }
   }
-}
-
+};
 </script>
-

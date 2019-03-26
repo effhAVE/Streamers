@@ -2,15 +2,17 @@
   <article class="media">
     <figure class="media-left">
       <p class="image is-64x64">
-        <img v-bind:src="streamer.avatar">
+        <img v-bind:src="streamer.avatar" />
       </p>
     </figure>
     <div class="media-content">
       <div class="content">
         <p>
           <strong>{{ streamer.username }}</strong>
-          <small class="is-pulled-right has-text-weight-light">Aktualizacja: {{ update }}</small>
-          <br>
+          <small class="is-pulled-right has-text-weight-light"
+            >Aktualizacja: {{ update }}</small
+          >
+          <br />
           {{ streamer.streamDetails.title }}
         </p>
       </div>
@@ -22,10 +24,12 @@
         </button>
         <button class="delete" @click="$emit('remove')"></button>
       </div>
-      <p
-        :class="{ 'is-live': streamer.streamDetails.live }"
-      >{{ streamer.streamDetails.live ? 'LIVE' : 'OFFLINE' }}</p>
-      <p v-if="streamer.streamDetails.live">{{ streamer.streamDetails.viewersCount + ' widzów' }}</p>
+      <p :class="{ 'is-live': streamer.streamDetails.live }">
+        {{ streamer.streamDetails.live ? "LIVE" : "OFFLINE" }}
+      </p>
+      <p v-if="streamer.streamDetails.live">
+        {{ streamer.streamDetails.viewersCount + " widzów" }}
+      </p>
     </div>
   </article>
 </template>
@@ -95,7 +99,7 @@ small {
   text-align: center;
   padding: 0;
   &:hover {
-    background-color: rgba(10,10,10,.3);
+    background-color: rgba(10, 10, 10, 0.3);
   }
 }
 
@@ -104,4 +108,3 @@ small {
   align-items: center;
 }
 </style>
-

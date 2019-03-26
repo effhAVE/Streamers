@@ -1,6 +1,6 @@
 <template>
   <article class="media">
-    <div class="spinner3"></div>
+    <div class="spinner"></div>
   </article>
 </template>
 
@@ -14,7 +14,7 @@
   }
 }
 
-.spinner3 {
+.spinner {
   border-top: 3px solid rgba(0, 0, 0, 0.5);
   border-right: 3px solid transparent;
   border-radius: 50%;
@@ -23,6 +23,3 @@
   height: 4rem;
 }
 </style>
-
-
-

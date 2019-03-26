@@ -17,9 +17,9 @@
         :isLoading="!streamer.id"
         @refresh="updateStreamer(streamer)"
       />
-      <Loader v-if="newReq" :key="'loader'"/>
+      <Loader v-if="newReq" :key="'loader'" />
     </transition-group>
-    <Filters ref="Filters" :streamers-list="streamersList"/>
+    <Filters ref="Filters" :streamers-list="streamersList" />
   </div>
 </template>
 
@@ -41,7 +41,6 @@ export default {
   data() {
     return {
       isMounted: false,
-      errors: [],
       streamersList: [],
       newReq: false
     };
@@ -49,6 +48,10 @@ export default {
 
   methods: {
     addStreamer: function(streamer) {
+      if(this.streamersList.some(el => el.username === streamer.username && el.platform === streamer.platform)) {
+        this.$refs.StreamerInput.toastHandler(this.$refs.StreamerInput.toastData.duplicateUser);
+        return;
+      }
       this.streamersList.push(streamer);
       this.saveToLS();
     },
@@ -70,8 +73,6 @@ export default {
           el.username
         );
       });
-
-      this.saveToLS();
     },
 
     updateStreamer(streamer) {
@@ -93,7 +94,7 @@ export default {
   mounted() {
     this.isMounted = true;
     let StreamerInput = this.$refs.StreamerInput;
-    if (localStorage.getItem("streamersList") !== "[]") {
+    if (localStorage.getItem("streamersList") && localStorage.getItem("streamersList") !== "[]") {
       try {
         this.streamersList = JSON.parse(localStorage.getItem("streamersList"));
         this.updateStreams();
