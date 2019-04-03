@@ -35,40 +35,39 @@ import axios from "axios";
 import moment from "moment";
 import { toast } from "bulma-toast";
 
+// Classes that will be used to display messages to the user via bulma-toast
 class Toast {
-  constructor(title, message) {
-    this.title = title;
+  constructor(message) {
     this.message = message;
   }
 }
 
 class Err extends Toast {
-  constructor(title, message) {
-    super(title, message);
+  constructor(message) {
+    super(message);
     this.type = "is-danger";
   }
 }
 
 class Warning extends Toast {
-  constructor(title, message) {
-    super(title, message);
+  constructor(message) {
+    super(message);
     this.type = "is-warning";
   }
 }
 
 const userNotFound = new Warning(
-  "Nie znaleziono",
   "Użytkownik o podanej nazwie nie mógł zostać znaleziony."
 );
 
-const duplicateUser = new Warning(
-  "Duplikat",
-  "Użytkownik został już wcześniej dodany."
-);
+const userDuplicate = new Warning("Użytkownik został już wcześniej dodany.");
+
+const limitExceeded = new Err("APP: Przekroczono maksymalną liczbę żądań.");
 
 const toastData = {
   userNotFound,
-  duplicateUser
+  userDuplicate,
+  limitExceeded
 };
 
 export default {
@@ -80,9 +79,15 @@ export default {
       refreshValue: 120,
       toastData: toastData,
       platforms: [
+        /*
+         * Each platform has 2 methods used to gather information from API:
+         * getUserData - used to get general user's data
+         * getStreamData - used to get stream's specific data (status, viewer count, title)
+         */
         {
           name: "Twitch.tv",
           clientID: "8o42qg6i3424rm4tw4rzfx1xzvfxsj",
+          limitExceeded: false,
           getUserData: (nickname, newUser) => {
             let streamerData = newUser;
             axios
@@ -92,31 +97,45 @@ export default {
                 }
               })
               .then(res => {
-                let userData = res.data.data[0];
-                if (!userData) {
+                const data = res.data.data[0];
+                if (!data) {
+                  // if user was not found
                   this.toastHandler(this.toastData.userNotFound);
                   throw new Error();
                 }
-                streamerData.id = userData.id;
-                streamerData.username = userData.display_name;
-                streamerData.avatar = userData.profile_image_url;
+
+                // assign API data to streamer object
+                streamerData.id = data.id;
+                streamerData.username = data.display_name;
+                streamerData.avatar = data.profile_image_url;
+              })
+              .then(() => {
+                // if streamer was found, get his stream data and emit an event to add him to the array
+                this.platforms[0].getStreamData(streamerData, nickname);
+                this.$emit("addStreamer", streamerData);
               })
               .catch(err => {
                 if (err.response) {
+                  // if API request returned an error
                   err = err.response.data;
-                  let errObj = new Err(err.error, err.message);
+
+                  // create a toast error object
+                  let errObj = new Err(err.message);
+
+                  // and display it
                   this.toastHandler(errObj);
                 }
               })
               .then(() => {
-                if (streamerData.id !== -1) {
-                  this.platforms[0].getStreamInfo(streamerData, nickname);
-                  this.$emit("addStreamer", streamerData);
-                }
+                // Emit an event to indicate that processing of the request has ended.
                 this.$emit("reqCompleted");
               });
           },
-          getStreamInfo: (userData, nickname) => {
+          getStreamData: (userData, nickname) => {
+            if (this.platforms[0].limitExceeded) {
+              return;
+            }
+
             axios
               .get(
                 "https://api.twitch.tv/helix/streams?user_login=" + nickname,
@@ -127,23 +146,40 @@ export default {
                 }
               )
               .then(res => {
-                let streamData = res.data.data;
+                const data = res.data.data;
+
+                // Get current time using moment.js and assign it to lastUpdate property.
                 userData.lastUpdate = moment();
                 this.$emit("updated");
-                if (streamData.length) {
+                if (data.length) {
+                  // if streamer is live (API response is not empty)
                   userData.streamDetails.live = true;
-                  userData.streamDetails.title = streamData[0].title;
-                  userData.streamDetails.viewersCount =
-                    streamData[0].viewer_count;
+                  userData.streamDetails.title = data[0].title;
+                  userData.streamDetails.viewersCount = data[0].viewer_count;
                 } else {
+                  // streamer is not live / went offline after update
                   userData.streamDetails.live = false;
                   userData.streamDetails.title = "";
                   userData.streamDetails.viewersCount = 0;
+                }
+              })
+              .catch(err => {
+                if (err.response) {
+                  if (err.response.status === 429) {
+                    // if daily limit of request has been exceeded
+                    this.toastHandler(this.toastData.limitExceeded);
+                    this.platforms[0].limitExceeded = true;
+                  } else {
+                    err = err.response.data;
+                    let errObj = new Err(err.message);
+                    this.toastHandler(errObj);
+                  }
                 }
               });
           }
         },
         {
+          // FIXME: needs an update to match other platforms
           name: "Smashcast",
           getUserData: (nickname, newUser) => {
             let streamerData = newUser;
@@ -164,14 +200,17 @@ export default {
                   this.toastHandler(this.toastData.userNotFound);
                   throw new Error();
                 } else {
-                  this.platforms[1].getStreamInfo(streamerData, nickname);
+                  this.platforms[1].getStreamData(streamerData, nickname);
                   this.$emit("addStreamer", streamerData);
                 }
                 this.$emit("reqCompleted");
               });
           },
-          getStreamInfo: (userData, nickname) => {
-            if (!userData.streamDetails.live) return;
+          getStreamData: (userData, nickname) => {
+            if (!userData.streamDetails.live) {
+              return;
+            }
+
             axios
               .get("https://api.smashcast.tv/media/live/" + nickname)
               .then(res => {
@@ -186,6 +225,7 @@ export default {
         {
           name: "YouTube",
           clientID: "AIzaSyA93xyB0C3A7nxUuUGBCzCltpbVkzxQWAU",
+          limitExceeded: false,
           getUserData: (nickname, newUser) => {
             let streamerData = newUser;
             axios
@@ -200,31 +240,34 @@ export default {
                 }
               )
               .then(res => {
-                let userData = res.data.items[0];
-                if (!userData) {
+                const data = res.data.items[0];
+                if (!data) {
                   this.toastHandler(this.toastData.userNotFound);
                   throw new Error();
                 }
-                streamerData.id = userData.id;
-                streamerData.username = userData.snippet.title;
-                streamerData.avatar = userData.snippet.thumbnails.default.url;
+
+                streamerData.id = data.id;
+                streamerData.username = data.snippet.title;
+                streamerData.avatar = data.snippet.thumbnails.default.url;
+                this.platforms[2].getStreamData(streamerData, nickname);
+                this.$emit("addStreamer", streamerData);
               })
               .catch(err => {
                 if (err.response) {
                   err = err.response.data;
-                  let errObj = new Err(err.error, err.message);
+                  let errObj = new Err(err.message);
                   this.toastHandler(errObj);
                 }
               })
               .then(() => {
-                if (streamerData.id !== -1) {
-                  this.platforms[2].getStreamInfo(streamerData, nickname);
-                  this.$emit("addStreamer", streamerData);
-                }
                 this.$emit("reqCompleted");
               });
           },
-          getStreamInfo: (userData, nickname) => {
+          getStreamData: userData => {
+            if (this.platforms[2].limitExceeded) {
+              return;
+            }
+
             let videoID = "";
             axios
               .get(
@@ -240,18 +283,26 @@ export default {
                 }
               )
               .then(res => {
-                let streamData = res.data.items[0];
+                const data = res.data.items[0];
                 userData.lastUpdate = moment();
                 this.$emit("updated");
-                if (typeof streamData !== "undefined") {
+                if (typeof data !== "undefined") {
                   userData.streamDetails.live = true;
-                  userData.streamDetails.title = streamData.snippet.title;
-                  videoID = streamData.id.videoId;
+                  userData.streamDetails.title = data.snippet.title;
+                  videoID = data.id.videoId;
                 } else {
                   userData.streamDetails.live = false;
                   userData.streamDetails.title = "";
                   videoID = "";
                   userData.streamDetails.viewersCount = 0;
+                }
+              })
+              .catch(err => {
+                if (err.response) {
+                  if (err.response.status === 403) {
+                    this.toastHandler(this.toastData.limitExceeded);
+                    this.platforms[2].limitExceeded = true;
+                  }
                 }
               })
               .then(() => {
@@ -281,8 +332,11 @@ export default {
 
   computed: {
     refreshRate() {
-      if (this.refreshValue >= 60) return this.refreshValue * 100;
-      else return 60 * 100;
+      if (this.refreshValue >= 60) {
+        return this.refreshValue * 100;
+      } else {
+        return 60 * 100;
+      }
     }
   },
 
@@ -301,7 +355,10 @@ export default {
     },
 
     send: function() {
-      if (!this.nickname) return;
+      if (!this.nickname) {
+        return;
+      }
+
       this.$emit("newRequest");
       let newUser = new this.User(this.selected);
       this.platforms[this.selected].getUserData(this.nickname, newUser);
@@ -313,7 +370,9 @@ export default {
     },
 
     checkRefreshInput() {
-      if (this.refreshValue < 60) this.refreshValue = 60;
+      if (this.refreshValue < 60) {
+        this.refreshValue = 60;
+      }
     }
   }
 };

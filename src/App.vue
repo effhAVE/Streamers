@@ -17,9 +17,9 @@
         :isLoading="!streamer.id"
         @refresh="updateStreamer(streamer)"
       />
-      <Loader v-if="newReq" :key="'loader'" />
+      <Loader v-if="newReq" :key="'loader'"/>
     </transition-group>
-    <Filters ref="Filters" :streamers-list="streamersList" />
+    <Filters ref="Filters" :streamers-list="streamersList"/>
   </div>
 </template>
 
@@ -48,8 +48,17 @@ export default {
 
   methods: {
     addStreamer: function(streamer) {
-      if(this.streamersList.some(el => el.username === streamer.username && el.platform === streamer.platform)) {
-        this.$refs.StreamerInput.toastHandler(this.$refs.StreamerInput.toastData.duplicateUser);
+      if (
+        this.streamersList.some(
+          el =>
+            el.username === streamer.username &&
+            el.platform === streamer.platform
+        )
+      ) {
+        // if user has been added
+        this.$refs.StreamerInput.toastHandler(
+          this.$refs.StreamerInput.toastData.userDuplicate
+        );
         return;
       }
       this.streamersList.push(streamer);
@@ -68,7 +77,7 @@ export default {
 
     updateStreams() {
       this.streamersList.forEach(el => {
-        this.$refs.StreamerInput.platforms[el.platform].getStreamInfo(
+        this.$refs.StreamerInput.platforms[el.platform].getStreamData(
           el,
           el.username
         );
@@ -76,7 +85,7 @@ export default {
     },
 
     updateStreamer(streamer) {
-      this.$refs.StreamerInput.platforms[streamer.platform].getStreamInfo(
+      this.$refs.StreamerInput.platforms[streamer.platform].getStreamData(
         streamer,
         streamer.username
       );
@@ -94,14 +103,19 @@ export default {
   mounted() {
     this.isMounted = true;
     let StreamerInput = this.$refs.StreamerInput;
-    if (localStorage.getItem("streamersList") && localStorage.getItem("streamersList") !== "[]") {
+    if (
+      localStorage.getItem("streamersList") &&
+      localStorage.getItem("streamersList") !== "[]"
+    ) {
+      // get list of streamers from localStorage
       try {
         this.streamersList = JSON.parse(localStorage.getItem("streamersList"));
         this.updateStreams();
-      } catch (e) {
+      } catch (err) {
         localStorage.removeItem("streamersList");
       }
     } else {
+      // nothing found in localStorage, so we add a few placeholder streamers
       this.$nextTick(function() {
         StreamerInput.platforms[0].getUserData(
           "ESL_CSGO",
@@ -126,6 +140,7 @@ export default {
       });
     }
 
+    // Update streams' status with given refresh rate or a default value
     setInterval(this.updateStreams, StreamerInput.refreshRate || 120000);
   }
 };

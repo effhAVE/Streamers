@@ -1,11 +1,6 @@
 <template>
   <div class="filters">
-    <input
-      class="input is-primary"
-      type="text"
-      placeholder="Filtruj"
-      v-model="filters.name"
-    />
+    <input class="input is-primary" type="text" placeholder="Filtruj" v-model="filters.name">
     <div class="field">
       <div class="control">
         <div class="select is-primary">
@@ -36,9 +31,14 @@ export default {
   },
 
   methods: {
+    // Methods that return a filtered list for the specific parameter
     checkStatus: function(obj) {
-      if (this.filters.live === null) return true;
-      return obj.streamDetails.live === this.filters.live;
+      if (this.filters.live === null) {
+        // Live + Offline
+        return true;
+      } else {
+        return obj.streamDetails.live === this.filters.live;
+      }
     },
 
     checkUsername: function(obj) {
@@ -49,6 +49,7 @@ export default {
   },
 
   computed: {
+    // A function that checks all filters and returns a filtered list of streamers
     filterList: function() {
       return this.streamersList.filter(obj => {
         return this.checkUsername(obj) && this.checkStatus(obj);
