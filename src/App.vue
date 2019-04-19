@@ -1,12 +1,6 @@
 <template>
   <div id="app">
-    <StreamerInput
-      ref="StreamerInput"
-      @addStreamer="addStreamer($event)"
-      @newRequest="newReq = true"
-      @reqCompleted="newReq = false"
-      @updated="saveToLS"
-    />
+    <StreamerInput @refreshValChanged="refreshRate = $event * 1000"/>
     <transition-group name="list" tag="div" class="streamers-list" appear>
       <Streamer
         @remove="deleteStreamer(index)"
@@ -28,7 +22,9 @@ import StreamerInput from "./components/StreamerInput.vue";
 import Streamer from "./components/Streamer.vue";
 import Filters from "./components/Filters.vue";
 import Loader from "./components/Loader.vue";
+import bus from "./eventBus";
 import { setInterval } from "timers";
+const app = require("./api");
 
 export default {
   name: "app",
@@ -42,7 +38,8 @@ export default {
     return {
       isMounted: false,
       streamersList: [],
-      newReq: false
+      newReq: false,
+      refreshRate: 120000
     };
   },
 
@@ -50,15 +47,11 @@ export default {
     addStreamer: function(streamer) {
       if (
         this.streamersList.some(
-          el =>
-            el.username === streamer.username &&
-            el.platform === streamer.platform
+          el => el.name === streamer.name && el.platform === streamer.platform
         )
       ) {
         // if user has been added
-        this.$refs.StreamerInput.toastHandler(
-          this.$refs.StreamerInput.toastData.userDuplicate
-        );
+        app.toastHandler(app.toastData.userDuplicate);
         return;
       }
       this.streamersList.push(streamer);
@@ -77,18 +70,12 @@ export default {
 
     updateStreams() {
       this.streamersList.forEach(el => {
-        this.$refs.StreamerInput.platforms[el.platform].getStreamData(
-          el,
-          el.username
-        );
+        app.platforms[el.platform].getStreamData(el, el.name);
       });
     },
 
     updateStreamer(streamer) {
-      this.$refs.StreamerInput.platforms[streamer.platform].getStreamData(
-        streamer,
-        streamer.username
-      );
+      app.platforms[streamer.platform].getStreamData(streamer, streamer.name);
     }
   },
 
@@ -102,7 +89,18 @@ export default {
 
   mounted() {
     this.isMounted = true;
-    let StreamerInput = this.$refs.StreamerInput;
+    bus.$on("addStreamer", ev => {
+      this.addStreamer(ev);
+    });
+    bus.$on("newRequest", () => {
+      this.newReq = true;
+    });
+    bus.$on("reqCompleted", () => {
+      this.newReq = false;
+    });
+    bus.$on("updated", () => {
+      this.saveToLS();
+    });
     if (
       localStorage.getItem("streamersList") &&
       localStorage.getItem("streamersList") !== "[]"
@@ -117,31 +115,16 @@ export default {
     } else {
       // nothing found in localStorage, so we add a few placeholder streamers
       this.$nextTick(function() {
-        StreamerInput.platforms[0].getUserData(
-          "ESL_CSGO",
-          new StreamerInput.User(0)
-        );
-        StreamerInput.platforms[0].getUserData(
-          "RocketLeague",
-          new StreamerInput.User(0)
-        );
-        StreamerInput.platforms[0].getUserData(
-          "hAVE__",
-          new StreamerInput.User(0)
-        );
-        StreamerInput.platforms[0].getUserData(
-          "wgl_en",
-          new StreamerInput.User(0)
-        );
-        StreamerInput.platforms[2].getUserData(
-          "TheBesi523",
-          new StreamerInput.User(2)
-        );
+        app.platforms[0].getUserData("ESL_CSGO", new app.User(0));
+        app.platforms[0].getUserData("RocketLeague", new app.User(0));
+        app.platforms[0].getUserData("hAVE__", new app.User(0));
+        app.platforms[0].getUserData("wgl_en", new app.User(0));
+        app.platforms[2].getUserData("TheBesi523", new app.User(2));
       });
     }
 
     // Update streams' status with given refresh rate or a default value
-    setInterval(this.updateStreams, StreamerInput.refreshRate || 120000);
+    setInterval(this.updateStreams, this.refreshRate);
   }
 };
 </script>

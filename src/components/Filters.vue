@@ -12,6 +12,7 @@
         </div>
       </div>
     </div>
+    <button class="button is-primary" type="button" @click="setDefaultValues">Resetuj filtry</button>
   </div>
 </template>
 
@@ -42,9 +43,14 @@ export default {
     },
 
     checkUsername: function(obj) {
-      return obj.username
+      return obj.displayName
         .toLowerCase()
         .includes(this.filters.name.toLowerCase());
+    },
+
+    setDefaultValues: function() {
+      this.filters.name = "";
+      this.filters.live = null;
     }
   },
 
@@ -58,3 +64,10 @@ export default {
   }
 };
 </script>
+
+<style lang="scss" scoped>
+.field:not(:last-child) {
+  margin: 0;
+}
+</style>
+

@@ -8,7 +8,7 @@
     <div class="media-content">
       <div class="content">
         <p>
-          <strong>{{ streamer.username }}</strong>
+          <a class="streamer-link" target="_blank" :href="link">{{ streamer.displayName }}</a>
           <small class="is-pulled-right has-text-weight-light">Aktualizacja: {{ update }}</small>
           <br>
           {{ streamer.streamDetails.title }}
@@ -51,6 +51,24 @@ export default {
     updateTime: function() {
       moment.locale("pl");
       this.update = moment().to(this.streamer.lastUpdate);
+    }
+  },
+
+  computed: {
+    link: function() {
+      let href = "";
+      switch (this.streamer.platform) {
+        case 0:
+          href += 'https://www.twitch.tv/' + this.streamer.name;
+          break;
+        case 1:
+          break;
+        case 2:
+          href += ''; // TODO
+          break;
+      }
+
+      return href;
     }
   },
 
@@ -103,5 +121,14 @@ small {
 .options {
   display: flex;
   align-items: center;
+}
+
+.streamer-link {
+  font-weight: 700;
+  color: inherit;
+  transition: color .3s;
+  &:hover {
+    color: #00d1b2;
+  }
 }
 </style>
